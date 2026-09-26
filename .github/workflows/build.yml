@@ -1,0 +1,86 @@
+name: Build miatoll RKSU kernel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: RKSU + SUSFS v2.3.0 + NoMount v2.0.0 (joyeuse/MIUI14)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout package
+        uses: actions/checkout@v4
+        with:
+          path: pkg
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git curl bc bison flex libssl-dev libelf-dev \
+            build-essential python3 zip unzip ccache
+
+      - name: Clone base kernel (kinesis-MIUIv4)
+        run: |
+          git clone --depth 1 --branch kinesis-MIUIv4 \
+            https://github.com/clarencelol/kernel_xiaomi_sm6250.git kernel
+          cd kernel
+          git log -1 --format="%H %ad %s"
+
+      - name: Apply patches
+        run: |
+          cd kernel
+          for p in ../pkg/patches/*.patch; do
+            echo "=== Applying $(basename $p) ==="
+            git apply --check "$p"
+            git apply --verbose "$p"
+          done
+          echo "=== checks ==="
+          ls drivers/kernelsu/core/init.c fs/susfs.c fs/nomount/nomount.c
+          grep -m1 SUSFS_VERSION include/linux/susfs.h
+          grep -c CONFIG_KSU arch/arm64/configs/vendor/atoll-perf_defconfig
+
+      - name: Sync Neutron Clang
+        run: |
+          mkdir -p neutron-clang && cd neutron-clang
+          bash <(curl -s "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman") -S
+          find "$PWD" -name clang -type f | head -3
+
+      - name: Build kernel
+        run: |
+          CLANG_BIN=$(dirname "$(find "$PWD/neutron-clang" -name clang -type f | head -1)")
+          echo "CLANG_BIN=$CLANG_BIN"
+          export PATH="$CLANG_BIN:$PATH"
+          clang --version | head -2
+          cd kernel
+          make O=out ARCH=arm64 atoll-perf_defconfig
+          echo "=== resolved config ==="
+          grep -E "CONFIG_KSU=|CONFIG_KSU_MANUAL_HOOK=|CONFIG_KSU_SUSFS=|CONFIG_NOMOUNT=|CONFIG_QCA_CLD_WLAN" out/.config
+          make O=out ARCH=arm64 -j$(nproc) \
+            LLVM=1 LLVM_IAS=1 CLANG_TRIPLE=aarch64-linux-gnu- \
+            Image.gz-dtb modules 2>&1 | tail -30
+          echo "=== outputs ==="
+          ls -lh out/arch/arm64/boot/Image.gz-dtb
+          find out -name "wlan.ko"
+
+      - name: Package AnyKernel3
+        run: |
+          git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git ak3
+          rm -f ak3/anykernel.sh
+          cp pkg/anykernel.sh ak3/anykernel.sh
+          cp kernel/out/arch/arm64/boot/Image.gz-dtb ak3/
+          mkdir -p ak3/modules
+          find kernel/out -name "wlan.ko" -exec cp -v {} ak3/modules/ \;
+          cd ak3
+          zip -r9 "../RKSU-SUSFS-kinesis-miatoll-joyeuse-$(date +%Y%m%d).zip" * -x README.md .git\*
+          cd ..
+          ls -lh *.zip
+          unzip -l *.zip | head -20
+
+      - name: Upload flashable zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: RKSU-SUSFS-kinesis-miatoll
+          path: "*.zip"
+          retention-days: 30
