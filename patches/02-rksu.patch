@@ -79,7 +79,7 @@ index 000000000..bce41b2d3
 +out
 diff --git a/drivers/kernelsu/Kbuild b/drivers/kernelsu/Kbuild
 new file mode 100644
-index 000000000..4aad06833
+index 000000000..c33994a50
 --- /dev/null
 +++ b/drivers/kernelsu/Kbuild
 @@ -0,0 +1,248 @@
@@ -150,7 +150,7 @@ index 000000000..4aad06833
 +$(info -- Can't find $(REPO_NAME) git submodule!)
 +$(info -- If you are using bazel to build this kernel,)
 +$(info -- Please go to Kbuild and change KSU_SRC to the absolute path of the KSU kernel folder.)
-+$(error You should use $(REPO_NAME) as a git submodule instead of copying code directly)
++$(warning $(REPO_NAME) is integrated by direct copy instead of git submodule; continuing anyway (miatoll/clarence build))
 +endif
 +
 +ifdef KBUILD_EXTMOD
