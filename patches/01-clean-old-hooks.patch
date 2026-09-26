@@ -1,0 +1,118 @@
+diff --git a/drivers/input/input.c b/drivers/input/input.c
+index 203635a74..12e275a46 100644
+--- a/drivers/input/input.c
++++ b/drivers/input/input.c
+@@ -377,17 +377,11 @@ static int input_get_disposition(struct input_dev *dev,
+ 	return disposition;
+ }
+ 
+-#ifdef CONFIG_KSU
+-extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);
+-#endif
+ 
+ static void input_handle_event(struct input_dev *dev,
+ 			       unsigned int type, unsigned int code, int value)
+ {
+ 	int disposition = input_get_disposition(dev, type, code, &value);
+-#ifdef CONFIG_KSU
+-	ksu_handle_input_handle_event(&type, &code, &value);
+-#endif
+ 	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
+ 		add_input_randomness(type, code, value);
+ 
+diff --git a/fs/exec.c b/fs/exec.c
+index be01d3dc3..b17e7f715 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1703,10 +1703,6 @@ static int exec_binprm(struct linux_binprm *bprm)
+ 	return ret;
+ }
+ 
+-#ifdef CONFIG_KSU
+-extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
+-			void *envp, int *flags);
+-#endif
+ 
+ /*
+  * sys_execve() executes a new program.
+@@ -1721,9 +1717,6 @@ static int do_execveat_common(int fd, struct filename *filename,
+ 	struct file *file;
+ 	struct files_struct *displaced;
+ 	int retval;
+-#ifdef CONFIG_KSU
+-	ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
+-#endif
+ 	if (IS_ERR(filename))
+ 		return PTR_ERR(filename);
+ 
+diff --git a/fs/open.c b/fs/open.c
+index 8a317c434..cbc1f1da0 100644
+--- a/fs/open.c
++++ b/fs/open.c
+@@ -365,10 +365,6 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
+ 	return error;
+ }
+ 
+-#ifdef CONFIG_KSU
+-extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
+-			 int *flags);
+-#endif
+ 
+ /*
+  * access() needs to use the real uid/gid, not the effective uid/gid.
+@@ -394,9 +390,6 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
+         if (status) {
+                 return -ENOENT;
+         }
+-#ifdef CONFIG_KSU
+-	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
+-#endif
+ 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
+ 		return -EINVAL;
+ 
+diff --git a/fs/read_write.c b/fs/read_write.c
+index fefbb960b..07cc905ef 100644
+--- a/fs/read_write.c
++++ b/fs/read_write.c
+@@ -429,17 +429,10 @@ ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
+ }
+ EXPORT_SYMBOL(kernel_read);
+ 
+-#ifdef CONFIG_KSU
+-extern int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
+-			size_t *count_ptr, loff_t **pos);
+-#endif
+ 
+ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+ {
+ 	ssize_t ret;
+-#ifdef CONFIG_KSU
+-	ksu_handle_vfs_read(&file, &buf, &count, &pos);
+-#endif
+ 	if (!(file->f_mode & FMODE_READ))
+ 		return -EBADF;
+ 	if (!(file->f_mode & FMODE_CAN_READ))
+diff --git a/fs/stat.c b/fs/stat.c
+index 9e7d5848f..395f43289 100644
+--- a/fs/stat.c
++++ b/fs/stat.c
+@@ -153,9 +153,6 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
+ }
+ EXPORT_SYMBOL(vfs_statx_fd);
+ 
+-#ifdef CONFIG_KSU
+-extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
+-#endif
+ 
+ /**
+  * vfs_statx - Get basic and extra attributes by filename
+@@ -179,9 +176,6 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
+ 	int error = -EINVAL;
+ 	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
+ 
+-#ifdef CONFIG_KSU
+-	ksu_handle_stat(&dfd, &filename, &flags);
+-#endif
+ 	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
+ 		       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
+ 		return -EINVAL;
