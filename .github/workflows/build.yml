@@ -54,7 +54,7 @@ jobs:
           export PATH="$CLANG_BIN:$PATH"
           clang --version | head -2
           cd kernel
-          make O=out ARCH=arm64 atoll-perf_defconfig
+          make O=out ARCH=arm64 vendor/atoll-perf_defconfig
           echo "=== resolved config ==="
           grep -E "CONFIG_KSU=|CONFIG_KSU_MANUAL_HOOK=|CONFIG_KSU_SUSFS=|CONFIG_NOMOUNT=|CONFIG_QCA_CLD_WLAN" out/.config
           make O=out ARCH=arm64 -j$(nproc) \
