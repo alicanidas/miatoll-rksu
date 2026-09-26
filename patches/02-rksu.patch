@@ -20,28 +20,10 @@ index 4a067525b..d9d5779bf 100644
 +
 +obj-$(CONFIG_KSU) += kernelsu/
 diff --git a/drivers/input/input.c b/drivers/input/input.c
-index 203635a74..47add5bb7 100644
+index 12e275a46..47add5bb7 100644
 --- a/drivers/input/input.c
 +++ b/drivers/input/input.c
-@@ -377,17 +377,11 @@ static int input_get_disposition(struct input_dev *dev,
- 	return disposition;
- }
- 
--#ifdef CONFIG_KSU
--extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);
--#endif
- 
- static void input_handle_event(struct input_dev *dev,
- 			       unsigned int type, unsigned int code, int value)
- {
- 	int disposition = input_get_disposition(dev, type, code, &value);
--#ifdef CONFIG_KSU
--	ksu_handle_input_handle_event(&type, &code, &value);
--#endif
- 	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
- 		add_input_randomness(type, code, value);
- 
-@@ -442,11 +436,21 @@ static void input_handle_event(struct input_dev *dev,
+@@ -436,11 +436,21 @@ static void input_handle_event(struct input_dev *dev,
   * to 'seed' initial state of a switch or initial position of absolute
   * axis, etc.
   */
@@ -22489,31 +22471,10 @@ index 000000000..904bad1c2
 +ccflags-y += -DKSU_COMPAT_HAS_SUSFS_INSTALL_SU_FD_DIRECT_CALL
 +endif
 diff --git a/fs/exec.c b/fs/exec.c
-index be01d3dc3..4705f7f50 100644
+index b17e7f715..4705f7f50 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -1703,10 +1703,6 @@ static int exec_binprm(struct linux_binprm *bprm)
- 	return ret;
- }
- 
--#ifdef CONFIG_KSU
--extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
--			void *envp, int *flags);
--#endif
- 
- /*
-  * sys_execve() executes a new program.
-@@ -1721,9 +1717,6 @@ static int do_execveat_common(int fd, struct filename *filename,
- 	struct file *file;
- 	struct files_struct *displaced;
- 	int retval;
--#ifdef CONFIG_KSU
--	ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
--#endif
- 	if (IS_ERR(filename))
- 		return PTR_ERR(filename);
- 
-@@ -1875,12 +1868,22 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1868,12 +1868,22 @@ static int do_execveat_common(int fd, struct filename *filename,
  	return retval;
  }
  
@@ -22536,7 +22497,7 @@ index be01d3dc3..4705f7f50 100644
  	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
  }
  
-@@ -1908,6 +1911,10 @@ static int compat_do_execve(struct filename *filename,
+@@ -1901,6 +1911,10 @@ static int compat_do_execve(struct filename *filename,
  		.is_compat = true,
  		.ptr.compat = __envp,
  	};
@@ -22548,20 +22509,10 @@ index be01d3dc3..4705f7f50 100644
  }
  
 diff --git a/fs/open.c b/fs/open.c
-index 8a317c434..d628c631b 100644
+index cbc1f1da0..d628c631b 100644
 --- a/fs/open.c
 +++ b/fs/open.c
-@@ -365,16 +365,18 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
- 	return error;
- }
- 
--#ifdef CONFIG_KSU
--extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
--			 int *flags);
--#endif
- 
- /*
-  * access() needs to use the real uid/gid, not the effective uid/gid.
+@@ -371,6 +371,12 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
   * We do this by temporarily clearing all FS-related capabilities and
   * switching the fsuid/fsgid around to the real ones.
   */
@@ -22574,29 +22525,21 @@ index 8a317c434..d628c631b 100644
  SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
  {
  	const struct cred *old_cred;
+@@ -390,6 +396,9 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
+         if (status) {
+                 return -ENOENT;
+         }
++#ifdef CONFIG_KSU
++	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
++#endif
+ 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
+ 		return -EINVAL;
+ 
 diff --git a/fs/read_write.c b/fs/read_write.c
-index fefbb960b..69a97b153 100644
+index 07cc905ef..69a97b153 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
-@@ -429,17 +429,10 @@ ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
- }
- EXPORT_SYMBOL(kernel_read);
- 
--#ifdef CONFIG_KSU
--extern int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
--			size_t *count_ptr, loff_t **pos);
--#endif
- 
- ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
- {
- 	ssize_t ret;
--#ifdef CONFIG_KSU
--	ksu_handle_vfs_read(&file, &buf, &count, &pos);
--#endif
- 	if (!(file->f_mode & FMODE_READ))
- 		return -EBADF;
- 	if (!(file->f_mode & FMODE_CAN_READ))
-@@ -575,11 +568,22 @@ static inline void file_pos_write(struct file *file, loff_t pos)
+@@ -568,11 +568,22 @@ static inline void file_pos_write(struct file *file, loff_t pos)
  		file->f_pos = pos;
  }
  
@@ -22620,96 +22563,10 @@ index fefbb960b..69a97b153 100644
  		loff_t pos = file_pos_read(f.file);
  		ret = vfs_read(f.file, buf, count, &pos);
 diff --git a/fs/stat.c b/fs/stat.c
-index 9e7d5848f..98fee617b 100644
+index 395f43289..7e35b7635 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
-@@ -22,6 +22,11 @@
- #include <linux/uaccess.h>
- #include <asm/unistd.h>
- 
-+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-+extern bool susfs_is_inode_sus_kstat(struct inode *inode, bool *out_is_fuse);
-+extern void susfs_sus_kstat_spoof_generic_fillattr(struct inode *inode, struct kstat *stat, u32 result_mask);
-+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-+
- /**
-  * generic_fillattr - Fill in the basic attributes from the inode struct
-  * @inode: Inode to use as the source
-@@ -76,9 +81,53 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
- 	stat->result_mask |= STATX_BASIC_STATS;
- 	request_mask &= STATX_ALL;
- 	query_flags &= KSTAT_QUERY_FLAGS;
-+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-+	if (susfs_is_current_app_uid()) {
-+		bool is_fuse = false;
-+		if (susfs_is_inode_sus_kstat(d_backing_inode(path->dentry), &is_fuse)) {
-+			if (!is_fuse) {
-+				// stat->mnt_id = real_mount(path->mnt)->mnt_id;
-+				// only for 5.10 kernel
-+				stat->result_mask |= STATX_SUS_KSTAT;
-+			}
-+			// stat->mnt_id = real_mount(path->mnt)->mnt_id;
-+			// only for 5.10 kernel
-+			stat->result_mask |= STATX_SUS_KSTAT_FUSE;
-+		}
-+	}
-+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-+
- 	if (inode->i_op->getattr)
-+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-+	{
-+		int err = inode->i_op->getattr(path, stat, request_mask,
-+					    query_flags);
-+		if (!err) {
-+			if (stat->result_mask & STATX_SUS_KSTAT) {
-+				susfs_sus_kstat_spoof_generic_fillattr(inode, stat, STATX_SUS_KSTAT);
-+				return err;
-+			}
-+			if (stat->result_mask & STATX_SUS_KSTAT_FUSE) {
-+				susfs_sus_kstat_spoof_generic_fillattr(inode, stat, STATX_SUS_KSTAT_FUSE);
-+			return err;
-+			}
-+		}
-+		return err;
-+	}
-+	if (stat->result_mask & STATX_SUS_KSTAT) {
-+		generic_fillattr(inode, stat);
-+		susfs_sus_kstat_spoof_generic_fillattr(inode, stat, STATX_SUS_KSTAT);
-+		return 0;
-+	}
-+	if (stat->result_mask & STATX_SUS_KSTAT_FUSE) {
-+		generic_fillattr(inode, stat);
-+		susfs_sus_kstat_spoof_generic_fillattr(inode, stat, STATX_SUS_KSTAT_FUSE);
-+		return 0;
-+	}
-+#else
- 		return inode->i_op->getattr(path, stat, request_mask,
- 					    query_flags);
-+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
- 
- 	generic_fillattr(inode, stat);
- 	return 0;
-@@ -153,9 +202,6 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
- }
- EXPORT_SYMBOL(vfs_statx_fd);
- 
--#ifdef CONFIG_KSU
--extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
--#endif
- 
- /**
-  * vfs_statx - Get basic and extra attributes by filename
-@@ -179,9 +225,6 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
- 	int error = -EINVAL;
- 	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
- 
--#ifdef CONFIG_KSU
--	ksu_handle_stat(&dfd, &filename, &flags);
--#endif
- 	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
- 		       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
- 		return -EINVAL;
-@@ -365,6 +408,17 @@ SYSCALL_DEFINE2(newlstat, const char __user *, filename,
+@@ -359,6 +359,17 @@ SYSCALL_DEFINE2(newlstat, const char __user *, filename,
  	return cp_new_stat(&stat, statbuf);
  }
  
@@ -22727,7 +22584,7 @@ index 9e7d5848f..98fee617b 100644
  #if !defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_SYS_NEWFSTATAT)
  SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
  		struct stat __user *, statbuf, int, flag)
-@@ -372,6 +426,10 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
+@@ -366,6 +377,10 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
  	struct kstat stat;
  	int error;
  
@@ -22738,7 +22595,7 @@ index 9e7d5848f..98fee617b 100644
  	error = vfs_fstatat(dfd, filename, &stat, flag);
  	if (error)
  		return error;
-@@ -386,6 +444,10 @@ SYSCALL_DEFINE2(newfstat, unsigned int, fd, struct stat __user *, statbuf)
+@@ -380,6 +395,10 @@ SYSCALL_DEFINE2(newfstat, unsigned int, fd, struct stat __user *, statbuf)
  
  	if (!error)
  		error = cp_new_stat(&stat, statbuf);
@@ -22749,7 +22606,7 @@ index 9e7d5848f..98fee617b 100644
  
  	return error;
  }
-@@ -506,6 +568,10 @@ SYSCALL_DEFINE2(fstat64, unsigned long, fd, struct stat64 __user *, statbuf)
+@@ -500,6 +519,10 @@ SYSCALL_DEFINE2(fstat64, unsigned long, fd, struct stat64 __user *, statbuf)
  
  	if (!error)
  		error = cp_new_stat64(&stat, statbuf);
@@ -22760,7 +22617,7 @@ index 9e7d5848f..98fee617b 100644
  
  	return error;
  }
-@@ -516,6 +582,10 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
+@@ -510,6 +533,10 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
  	struct kstat stat;
  	int error;
  
@@ -22771,7 +22628,7 @@ index 9e7d5848f..98fee617b 100644
  	error = vfs_fstatat(dfd, filename, &stat, flag);
  	if (error)
  		return error;
-@@ -656,6 +726,10 @@ COMPAT_SYSCALL_DEFINE4(newfstatat, unsigned int, dfd,
+@@ -650,6 +677,10 @@ COMPAT_SYSCALL_DEFINE4(newfstatat, unsigned int, dfd,
  	struct kstat stat;
  	int error;
  
@@ -22811,7 +22668,7 @@ index e40e52c55..95034301e 100644
  		return -EPERM;
  
 diff --git a/kernel/sys.c b/kernel/sys.c
-index 30801ea06..713fb8093 100644
+index 30801ea06..30cba04f2 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
 @@ -595,6 +595,10 @@ SYSCALL_DEFINE1(setuid, uid_t, uid)
@@ -22836,24 +22693,3 @@ index 30801ea06..713fb8093 100644
  
  	kruid = make_kuid(ns, ruid);
  	keuid = make_kuid(ns, euid);
-@@ -1182,12 +1190,20 @@ static int override_release(char __user *release, size_t len)
- 	return ret;
- }
- 
-+#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
-+extern struct static_key_false susfs_is_uname_spoof_buffer_set;
-+extern void susfs_spoof_uname(struct new_utsname* tmp);
-+#endif
- SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
- {
- 	struct new_utsname tmp;
- 
- 	down_read(&uts_sem);
- 	memcpy(&tmp, utsname(), sizeof(tmp));
-+#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
-+	if (static_branch_likely(&susfs_is_uname_spoof_buffer_set))
-+		susfs_spoof_uname(&tmp);
-+#endif
- 	up_read(&uts_sem);
- 	if (copy_to_user(name, &tmp, sizeof(tmp)))
- 		return -EFAULT;

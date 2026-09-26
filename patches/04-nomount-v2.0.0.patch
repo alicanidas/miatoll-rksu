@@ -1,8 +1,44 @@
 diff --git a/fs/Kconfig b/fs/Kconfig
-index fee0de28c..0c064ab3a 100644
+index fee0de28c..081356fa2 100644
 --- a/fs/Kconfig
 +++ b/fs/Kconfig
-@@ -319,4 +319,6 @@ config FILE_TABLE_DEBUG
+@@ -113,6 +113,8 @@ menu "Caches"
+ source "fs/fscache/Kconfig"
+ source "fs/cachefiles/Kconfig"
+ 
++source "fs/nomount/Kconfig"
++
+ endmenu
+ 
+ if BLOCK
+@@ -121,6 +123,8 @@ menu "CD-ROM/DVD Filesystems"
+ source "fs/isofs/Kconfig"
+ source "fs/udf/Kconfig"
+ 
++source "fs/nomount/Kconfig"
++
+ endmenu
+ endif # BLOCK
+ 
+@@ -131,6 +135,8 @@ source "fs/fat/Kconfig"
+ source "fs/exfat/Kconfig"
+ source "fs/ntfs/Kconfig"
+ 
++source "fs/nomount/Kconfig"
++
+ endmenu
+ endif # BLOCK
+ 
+@@ -210,6 +216,8 @@ config ARCH_HAS_GIGANTIC_PAGE
+ source "fs/configfs/Kconfig"
+ source "fs/efivarfs/Kconfig"
+ 
++source "fs/nomount/Kconfig"
++
+ endmenu
+ 
+ menuconfig MISC_FILESYSTEMS
+@@ -319,4 +327,6 @@ config FILE_TABLE_DEBUG
  	help
  	  This option enables debug of the open files using a global filetable
  
@@ -10,10 +46,10 @@ index fee0de28c..0c064ab3a 100644
 +
  endmenu
 diff --git a/fs/Makefile b/fs/Makefile
-index 9619a8fd3..92e3ea1c3 100644
+index d1964e2f4..bd0ba8798 100644
 --- a/fs/Makefile
 +++ b/fs/Makefile
-@@ -135,3 +135,5 @@ obj-y				+= exofs/ # Multiple modules
+@@ -137,3 +137,5 @@ obj-y				+= exofs/ # Multiple modules
  obj-$(CONFIG_CEPH_FS)		+= ceph/
  obj-$(CONFIG_PSTORE)		+= pstore/
  obj-$(CONFIG_EFIVAR_FS)		+= efivarfs/
