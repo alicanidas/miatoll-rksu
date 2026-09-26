@@ -1,0 +1,4 @@
+The program make is not installed. Install it by executing:
+ pkg install make
+or
+ pkg install make-guile
